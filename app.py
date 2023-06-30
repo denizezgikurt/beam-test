@@ -1,24 +1,23 @@
 import beam
-from transformers import pipeline
-
 
 app = beam.App(
-    name="sentiment-analysis-app",
-    cpu=4,
-    memory="16Gi",
-    python_version="python3.8",
-    python_packages=["transformers", "torch", "numpy"],
+    name="instructblip",
+    cpu=16,
+    memory="32Gi",
+    gpu="A10G",
+    python_packages=[
+        "git+https://github.com/NielsRogge/transformers.git@add_instruct_blip",
+        "torch>=1.13.1,<2",
+        "Pillow",
+        "requests",
+    ]
 )
 
+app.Trigger.RestAPI(
+    inputs={"url": beam.Types.String()},
+    outputs={"response": beam.Types.String()},
+    handler="run.py:generate_caption",
+    keep_warm_seconds=60,
+)
 
-
-def predict_sentiment(**inputs):
-    model = pipeline(
-        "sentiment-analysis", model="siebert/sentiment-roberta-large-english"
-    )
-    result = model(inputs["text"], truncation=True, top_k=1)
-    prediction = {i["label"]: i["score"] for i in result}
-
-    print(prediction)
-
-    return {"prediction": prediction}
+app.Mount.SharedVolume(name="instructblip-weights", path="./instructblip-weights")
